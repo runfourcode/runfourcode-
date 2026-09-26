@@ -1,0 +1,67 @@
+{
+  "entities": {
+    "Inquiry": {
+      "title": "Inquiry",
+      "description": "Client project request / inquiry submitted to RAN4कॉड",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "uid": { "type": "string" },
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "format": "email", "maxLength": 150 },
+        "phone": { "type": "string", "maxLength": 30 },
+        "website": { "type": "string", "maxLength": 200 },
+        "projectType": { "type": "string", "maxLength": 100 },
+        "budget": { "type": "string", "maxLength": 50 },
+        "idea": { "type": "string", "maxLength": 2000 },
+        "status": { "type": "string", "enum": ["NEW", "REPLIED", "IN PROGRESS", "CLOSED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "projectType", "idea", "status", "createdAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Chat message within an inquiry thread",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderType": { "type": "string", "enum": ["client", "admin"] },
+        "senderName": { "type": "string" },
+        "message": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "read": { "type": "boolean" }
+      },
+      "required": ["senderId", "senderType", "message", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile data",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "role": { "type": "string", "enum": ["client", "admin"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    }
+  },
+  "firestore": {
+    "/inquiries/{inquiryId}": {
+      "schema": { "$ref": "#/entities/Inquiry" },
+      "description": "Client project requests"
+    },
+    "/inquiries/{inquiryId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Chat messages for an inquiry"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profiles and roles"
+    }
+  }
+}

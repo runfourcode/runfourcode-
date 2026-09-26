@@ -1,0 +1,6 @@
+{
+  "name": "runfourcode",
+  "description": "Digital agency website and client platform for runfourcode — Business & Development.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'thakuradi8368@gmail.com' ||
+        request.auth.token.email == 'ran4code@gmail.com' ||
+        request.auth.token.email == 'admin@runfourcode.com'
+      );
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    match /siteContent/{docId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /cms/{cmsId} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /users/{userId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /inquiries/{inquiryId} {
+      allow read, create, update: if isSignedIn();
+      allow delete: if isAdmin();
+
+      match /messages/{messageId} {
+        allow read, create, update, delete: if isSignedIn();
+      }
+    }
+
+    match /projects/{projectId} {
+      allow read, create, update, delete: if isSignedIn();
+    }
+  }
+}
