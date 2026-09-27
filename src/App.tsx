@@ -19,6 +19,13 @@ import { ToastContainer, ToastMessage } from './components/Toast';
 import { ClientDashboard } from './views/ClientDashboard';
 import { AdminPanel } from './views/AdminPanel';
 
+const ADMIN_EMAILS = [
+  'aadityathakur.ayu243@gmail.com',
+  'thakuradi8368@gmail.com',
+  'ran4code@gmail.com',
+  'admin@runfourcode.com',
+];
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -36,16 +43,14 @@ export default function App() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  // Auth state observer & admin role check (Strictly ran4code@gmail.com with password for admin)
+  // Admin access is tied to the authenticated Firebase account, not a client-side password.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        // Only company email ran4code@gmail.com can ever have admin status (and requires password verification in AuthModal)
-        if (firebaseUser.email === 'ran4code@gmail.com') {
-          // Keep isAdmin as set by password login
-        } else {
-          setIsAdmin(false);
+        const admin = ADMIN_EMAILS.includes(firebaseUser.email || '');
+        setIsAdmin(admin);
+        if (!admin) {
           try {
             const userDocRef = doc(db, 'users', firebaseUser.uid);
             const userSnap = await getDoc(userDocRef);
@@ -74,10 +79,9 @@ export default function App() {
   const handleLogin = async () => {
     try {
       const res = await signInWithPopup(auth, googleProvider);
-      if (res.user.email === 'ran4code@gmail.com') {
-        // Even with Google login, ran4code@gmail.com requires explicit password verification for admin CRM
-        setIsAdmin(false);
-        addToast('Company account detected. Please verify admin password to enter CRM.');
+      if (ADMIN_EMAILS.includes(res.user.email || '')) {
+        setIsAdmin(true);
+        addToast('Signed in successfully with the admin account.');
       } else {
         setIsAdmin(false);
         addToast('Signed in successfully with Google.');
@@ -86,24 +90,6 @@ export default function App() {
       console.error('Login error:', error);
       addToast('Authentication failed. Please try again.', 'error');
     }
-  };
-
-  const handleAdminPasswordLogin = (email: string, pass: string): boolean => {
-    if (email === 'ran4code@gmail.com' && pass === 'Thakur@8851') {
-      const adminUser = {
-        uid: 'ran4code_admin_uid',
-        email: 'ran4code@gmail.com',
-        displayName: 'RAN4CODE Company Admin',
-        photoURL: null,
-        emailVerified: true,
-      } as unknown as User;
-
-      setUser(adminUser);
-      setIsAdmin(true);
-      addToast('Admin CRM unlocked for ran4code@gmail.com');
-      return true;
-    }
-    return false;
   };
 
   const handleLogout = async () => {
@@ -132,7 +118,6 @@ export default function App() {
           isOpen={requestModalOpen}
           onClose={() => setRequestModalOpen(false)}
           user={user}
-          onOpenAuth={() => setAuthModalOpen(true)}
           onSuccessToast={(msg) => addToast(msg)}
         />
         <ToastContainer toasts={toasts} onDismiss={removeToast} />
@@ -141,14 +126,13 @@ export default function App() {
   }
 
   if (currentView === 'admin') {
-    // Strictly verify isAdmin and ran4code@gmail.com
-    if (!isAdmin || user?.email !== 'ran4code@gmail.com') {
+    if (!isAdmin) {
       return (
         <div className="min-h-screen bg-[#F7F5F2] flex items-center justify-center p-6 text-center">
           <div className="max-w-md bg-white border border-neutral-300 p-8 rounded-3xl shadow-xl space-y-4">
             <h2 className="text-2xl font-bold font-['Space_Grotesk',sans-serif] text-red-600">Access Denied</h2>
             <p className="text-sm text-neutral-600">
-              The Admin Panel is fully password-protected and restricted exclusively to company email <code className="font-mono text-[#0D06B2]">ran4code@gmail.com</code> with authorized password verification.
+              The Admin Panel is restricted to authorized company accounts signed in through Firebase.
             </p>
             <button
               onClick={() => setCurrentView('home')}
@@ -202,14 +186,12 @@ export default function App() {
         onOpenDashboard={() => setCurrentView('dashboard')}
         isAdmin={isAdmin}
         onOpenAdmin={() => setCurrentView('admin')}
-        onAdminPasswordLogin={handleAdminPasswordLogin}
       />
 
       <RequestModal
         isOpen={requestModalOpen}
         onClose={() => setRequestModalOpen(false)}
         user={user}
-        onOpenAuth={() => setAuthModalOpen(true)}
         onSuccessToast={(msg) => addToast(msg)}
       />
 

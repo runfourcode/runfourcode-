@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, ShieldCheck, Sparkles, User as UserIcon } from 'lucide-react';
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { User } from 'firebase/auth';
 import { ChatMessage, Inquiry } from '../types';
@@ -27,16 +27,14 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ user, onOpenAuth }) => {
       return;
     }
 
-    const q = query(collection(db, 'inquiries'));
+    const q = query(collection(db, 'inquiries'), where('uid', '==', user.uid));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
         const list: Inquiry[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data() as Inquiry;
-          if (data.uid === user.uid) {
-            list.push({ ...data, id: docSnap.id });
-          }
+          list.push({ ...data, id: docSnap.id });
         });
         setInquiries(list);
         if (list.length > 0 && !selectedInquiryId) {

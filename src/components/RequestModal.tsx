@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { X, Send, CheckCircle2, ArrowRight } from 'lucide-react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db } from '../firebase';
 import { User } from 'firebase/auth';
 
 interface RequestModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: User | null;
-  onOpenAuth: () => void;
   onSuccessToast: (msg: string) => void;
 }
 
@@ -16,7 +15,6 @@ export const RequestModal: React.FC<RequestModalProps> = ({
   isOpen,
   onClose,
   user,
-  onOpenAuth,
   onSuccessToast,
 }) => {
   const [name, setName] = useState(user?.displayName || '');
@@ -28,26 +26,22 @@ export const RequestModal: React.FC<RequestModalProps> = ({
   const [idea, setIdea] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) {
-      onClose();
-      onOpenAuth();
-      return;
-    }
-
     if (!name || !email || !idea) {
       alert('Please fill out all required fields.');
       return;
     }
 
     setSubmitting(true);
+    setSubmitError('');
     try {
       const inquiryData = {
-        uid: user.uid,
+        uid: user?.uid ?? null,
         name,
         email,
         phone,
@@ -61,10 +55,12 @@ export const RequestModal: React.FC<RequestModalProps> = ({
       };
 
       await addDoc(collection(db, 'inquiries'), inquiryData);
+      console.info('Inquiry submitted successfully.');
       setSubmitted(true);
       onSuccessToast('Request submitted successfully. Our engineering team will review it shortly.');
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'inquiries');
+      console.error('Failed to submit inquiry to Firestore:', error);
+      setSubmitError('We could not send your request. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -112,25 +108,11 @@ export const RequestModal: React.FC<RequestModalProps> = ({
               </span>
               <h2 className="text-3xl font-bold tracking-tight mt-3">Tell us what you're building.</h2>
               <p className="text-neutral-600 text-sm mt-1">
-                {user ? `Posting as ${user.email}` : 'Sign in required to submit requests and track progress.'}
+                {user ? `Submitting as ${user.email}` : 'Share your details and our team will follow up by email.'}
               </p>
             </div>
 
-            {!user ? (
-              <div className="p-6 bg-white border border-neutral-200 rounded-xl text-center space-y-4">
-                <p className="text-sm text-neutral-700">Please sign in with Google to start your project request.</p>
-                <button
-                  onClick={() => {
-                    onClose();
-                    onOpenAuth();
-                  }}
-                  className="py-3 px-6 bg-[#050505] text-white rounded-xl font-medium hover:bg-neutral-800 transition-colors shadow-md inline-flex items-center gap-2"
-                >
-                  Continue with Google <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-neutral-600 mb-1.5">
@@ -236,6 +218,10 @@ export const RequestModal: React.FC<RequestModalProps> = ({
                   />
                 </div>
 
+                {submitError && (
+                  <p role="alert" className="text-sm text-red-700">{submitError}</p>
+                )}
+
                 <button
                   type="submit"
                   disabled={submitting}
@@ -243,8 +229,7 @@ export const RequestModal: React.FC<RequestModalProps> = ({
                 >
                   {submitting ? 'Submitting Request...' : 'Send Request →'}
                 </button>
-              </form>
-            )}
+            </form>
           </div>
         )}
       </div>

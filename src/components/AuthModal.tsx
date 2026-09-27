@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, LogIn, LogOut, ShieldCheck, User as UserIcon, LayoutDashboard, Lock, Mail, KeyRound } from 'lucide-react';
+import { X, LogOut, ShieldCheck, LayoutDashboard } from 'lucide-react';
 import { User } from 'firebase/auth';
 
 interface AuthModalProps {
@@ -11,7 +11,6 @@ interface AuthModalProps {
   onOpenDashboard: () => void;
   isAdmin: boolean;
   onOpenAdmin: () => void;
-  onAdminPasswordLogin: (email: string, pass: string) => boolean;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -23,26 +22,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onOpenDashboard,
   isAdmin,
   onOpenAdmin,
-  onAdminPasswordLogin,
 }) => {
   const [isAdminTab, setIsAdminTab] = useState(false);
-  const [adminEmail, setAdminEmail] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
 
   if (!isOpen) return null;
-
-  const handleAdminSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg('');
-    const success = onAdminPasswordLogin(adminEmail, adminPassword);
-    if (success) {
-      onClose();
-      onOpenAdmin();
-    } else {
-      setErrorMsg('Access Denied: Invalid administrator credentials.');
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -73,7 +56,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {user
               ? 'Manage your project requests, track status, and chat directly with our engineering team.'
               : isAdminTab
-              ? 'Restricted administrative access. Enter your authorized credentials.'
+              ? 'Sign in with the authorized company Google account to access the admin CRM.'
               : 'Sign in with your Google account or access company admin portal.'}
           </p>
         </div>
@@ -137,47 +120,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           </div>
         ) : isAdminTab ? (
-          <form onSubmit={handleAdminSubmit} className="space-y-4">
-            {errorMsg && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl font-medium">
-                {errorMsg}
-              </div>
-            )}
-            <div>
-              <label className="block text-xs font-mono uppercase text-neutral-600 mb-1">Company Admin Email</label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5" />
-                <input
-                  type="email"
-                  required
-                  value={adminEmail}
-                  onChange={(e) => setAdminEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white border border-neutral-300 rounded-xl text-sm focus:outline-none focus:border-[#0D06B2]"
-                  placeholder="ran4code@gmail.com"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-mono uppercase text-neutral-600 mb-1">Admin Password</label>
-              <div className="relative">
-                <KeyRound className="w-4 h-4 text-neutral-400 absolute left-3.5 top-3.5" />
-                <input
-                  type="password"
-                  required
-                  value={adminPassword}
-                  onChange={(e) => setAdminPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white border border-neutral-300 rounded-xl text-sm focus:outline-none focus:border-[#0D06B2]"
-                  placeholder="Thakur@8851"
-                />
-              </div>
-            </div>
+          <div className="space-y-4">
+            <p className="p-4 bg-white border border-neutral-200 rounded-xl text-sm text-neutral-700">
+              Admin access is verified by Firebase Authentication. Use the company Google account; client-side passwords cannot authorize Firestore access.
+            </p>
             <button
-              type="submit"
+              onClick={async () => {
+                await onLogin();
+                onClose();
+              }}
               className="w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-[#0D06B2] text-white rounded-xl font-medium hover:bg-[#0a0490] transition-colors shadow-lg"
             >
-              Verify & Enter Admin CRM
+              Continue with company Google account
             </button>
-          </form>
+          </div>
         ) : (
           <div className="space-y-6">
             <div className="p-4 bg-white border border-neutral-200 rounded-xl space-y-3">
@@ -187,7 +143,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
               <div className="flex items-center gap-3 text-sm text-neutral-700">
                 <span className="w-6 h-6 rounded-full bg-[#0D06B2]/10 text-[#0D06B2] flex items-center justify-center font-bold text-xs">2</span>
-                Admin CRM strictly for ran4code@gmail.com with password
+                Admin CRM for the authorized Firebase account
               </div>
             </div>
 

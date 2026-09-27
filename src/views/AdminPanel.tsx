@@ -118,7 +118,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
         }
       },
       (error) => {
-        handleFirestoreError(error, OperationType.GET, 'inquiries');
+        console.error('Failed to load admin inquiries from Firestore:', error);
         setLoading(false);
       }
     );

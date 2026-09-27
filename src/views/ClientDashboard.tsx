@@ -20,7 +20,7 @@ import {
   HeartPulse
 } from 'lucide-react';
 import { User } from 'firebase/auth';
-import { collection, query, onSnapshot, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { Inquiry, ChatMessage } from '../types';
 
@@ -55,16 +55,14 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   // Fetch client inquiries & projects
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'inquiries'));
+    const q = query(collection(db, 'inquiries'), where('uid', '==', user.uid));
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
         const list: Inquiry[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data() as Inquiry;
-          if (data.uid === user.uid) {
-            list.push({ ...data, id: docSnap.id });
-          }
+          list.push({ ...data, id: docSnap.id });
         });
         setInquiries(list);
         setLoading(false);
