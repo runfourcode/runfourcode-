@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Send, CheckCircle2, ArrowRight } from 'lucide-react';
+import { X, Send, CheckCircle2 } from 'lucide-react';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { User } from 'firebase/auth';
@@ -54,13 +54,13 @@ export const RequestModal: React.FC<RequestModalProps> = ({
         updatedAt: serverTimestamp(),
       };
 
-      await addDoc(collection(db, 'inquiries'), inquiryData);
-      console.info('Inquiry submitted successfully.');
+      const inquiryRef = await addDoc(collection(db, 'inquiries'), inquiryData);
+      console.info('Inquiry submitted successfully:', inquiryRef.id);
       setSubmitted(true);
       onSuccessToast('Request submitted successfully. Our engineering team will review it shortly.');
     } catch (error) {
       console.error('Failed to submit inquiry to Firestore:', error);
-      setSubmitError('We could not send your request. Please try again.');
+      setSubmitError('We could not send your request. Please check your connection and try again.');
     } finally {
       setSubmitting(false);
     }
@@ -218,9 +218,7 @@ export const RequestModal: React.FC<RequestModalProps> = ({
                   />
                 </div>
 
-                {submitError && (
-                  <p role="alert" className="text-sm text-red-700">{submitError}</p>
-                )}
+                {submitError && <p role="alert" className="text-sm text-red-700">{submitError}</p>}
 
                 <button
                   type="submit"

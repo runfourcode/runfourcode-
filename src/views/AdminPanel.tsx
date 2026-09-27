@@ -41,6 +41,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
+  const [inquiryLoadError, setInquiryLoadError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -112,13 +113,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
           list.push({ ...(docSnap.data() as any), id: docSnap.id });
         });
         setInquiries(list);
+        setInquiryLoadError(null);
         setLoading(false);
-        if (list.length > 0 && !selectedInquiryId) {
-          setSelectedInquiryId(list[0].id);
+        if (list.length > 0) {
+          setSelectedInquiryId((currentId) => currentId ?? list[0].id);
         }
       },
       (error) => {
         console.error('Failed to load admin inquiries from Firestore:', error);
+        setInquiryLoadError('Could not load inquiries. Check that this account is authorized and Firestore rules are deployed.');
         setLoading(false);
       }
     );
@@ -515,6 +518,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
               <div className="flex-1 overflow-y-auto divide-y divide-white/5">
                 {loading ? (
                   <div className="p-8 text-center text-xs text-neutral-400">Loading inbox...</div>
+                ) : inquiryLoadError ? (
+                  <div role="alert" className="p-8 text-center text-xs text-red-300">{inquiryLoadError}</div>
                 ) : filteredInquiries.length === 0 ? (
                   <div className="p-8 text-center text-xs text-neutral-400">No inquiries found.</div>
                 ) : (

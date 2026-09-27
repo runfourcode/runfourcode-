@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, LogOut, ShieldCheck, LayoutDashboard } from 'lucide-react';
+import { X, LogIn, LogOut, ShieldCheck, LayoutDashboard } from 'lucide-react';
 import { User } from 'firebase/auth';
 
 interface AuthModalProps {
@@ -56,7 +56,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             {user
               ? 'Manage your project requests, track status, and chat directly with our engineering team.'
               : isAdminTab
-              ? 'Sign in with the authorized company Google account to access the admin CRM.'
+              ? 'Sign in with an authorized company Google account to access the admin CRM.'
               : 'Sign in with your Google account or access company admin portal.'}
           </p>
         </div>
@@ -122,7 +122,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         ) : isAdminTab ? (
           <div className="space-y-4">
             <p className="p-4 bg-white border border-neutral-200 rounded-xl text-sm text-neutral-700">
-              Admin access is verified by Firebase Authentication. Use the company Google account; client-side passwords cannot authorize Firestore access.
+              Admin access is verified by Firebase Authentication. Client-side passwords cannot authorize Firestore access.
             </p>
             <button
               onClick={async () => {
@@ -131,7 +131,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               }}
               className="w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-[#0D06B2] text-white rounded-xl font-medium hover:bg-[#0a0490] transition-colors shadow-lg"
             >
-              Continue with company Google account
+              <LogIn className="w-4 h-4" /> Sign in with Google
             </button>
           </div>
         ) : (

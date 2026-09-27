@@ -48,7 +48,7 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
-        const admin = ADMIN_EMAILS.includes(firebaseUser.email || '');
+        const admin = ADMIN_EMAILS.includes(firebaseUser.email?.toLowerCase() || '');
         setIsAdmin(admin);
         if (!admin) {
           try {
@@ -79,7 +79,7 @@ export default function App() {
   const handleLogin = async () => {
     try {
       const res = await signInWithPopup(auth, googleProvider);
-      if (ADMIN_EMAILS.includes(res.user.email || '')) {
+      if (ADMIN_EMAILS.includes(res.user.email?.toLowerCase() || '')) {
         setIsAdmin(true);
         addToast('Signed in successfully with the admin account.');
       } else {
