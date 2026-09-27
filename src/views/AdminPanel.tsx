@@ -61,6 +61,46 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
   });
   const [savingCms, setSavingCms] = useState(false);
 
+  const handleSeedData = async () => {
+    try {
+      const sampleInquiries = [
+        {
+          uid: user?.uid || 'demo-client-1',
+          name: 'Aaditya Thakur',
+          email: user?.email || 'aadityathakur.ayu243@gmail.com',
+          phone: '+91 9876543210',
+          website: 'https://runfourcode.netlify.app',
+          projectType: 'Full-Stack SaaS Platform with AI',
+          budget: '$10k - $25k',
+          idea: 'Building a next-generation AI-powered cloud development platform with real-time analytics and automated deployments.',
+          status: 'NEW',
+          createdAt: serverTimestamp(),
+        },
+        {
+          uid: 'demo-client-2',
+          name: 'Sarah Jenkins',
+          email: 'sarah@enterprise.io',
+          phone: '+1 555-0192',
+          website: 'https://enterprise.io',
+          projectType: 'Mobile App & Cloud Backend',
+          budget: '$25k - $50k',
+          idea: 'Enterprise supply chain tracking mobile app with real-time GPS sync and Firestore sync.',
+          status: 'IN PROGRESS',
+          deployedUrl: 'https://runfourcode.netlify.app',
+          createdAt: serverTimestamp(),
+        },
+      ];
+
+      for (const inq of sampleInquiries) {
+        await addDoc(collection(db, 'inquiries'), inq);
+      }
+      alert('🚀 Successfully seeded demo projects & inquiries into Firestore! Check your Firebase Console under "inquiries".');
+    } catch (error) {
+      console.error('Error seeding data:', error);
+      alert('Error seeding data. Check console.');
+    }
+  };
+
   // Fetch all inquiries in real-time
   useEffect(() => {
     const q = query(collection(db, 'inquiries'), orderBy('createdAt', 'desc'));
@@ -295,6 +335,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
               }`}
             >
               <span>🤖 AI Code Medic</span>
+            </button>
+            <button
+              onClick={handleSeedData}
+              className="px-4 py-2 rounded-lg text-xs font-mono font-bold bg-emerald-600 text-white hover:bg-emerald-500 transition-colors flex items-center gap-1.5"
+            >
+              <span>⚡ Seed Demo Data</span>
             </button>
           </div>
         </div>
