@@ -1,12 +1,9 @@
 {
-  "projectId": "integral-tempo-6wh4c",
-  "appId": "1:117350217460:web:8160140fd1bd013f5c50a1",
-  "apiKey": "AIzaSyB_nBDsq0ydyHctOF8qaIu1Y3P_cNBkpYg",
-  "authDomain": "integral-tempo-6wh4c.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-e0fe0bf3-433c-4ec6-aed1-2ec07ff482a0",
-  "storageBucket": "integral-tempo-6wh4c.firebasestorage.app",
-  "messagingSenderId": "117350217460",
-  "measurementId": "",
-  "oAuthClientId": "117350217460-s0qtki2g7788n0kln2t3318aqucpf5t1.apps.googleusercontent.com",
-  "recaptchaSiteKey": ""
+  "apiKey": "AIzaSyA6F4C2kuY_01j8irm-tGa7hEcB4aNGkDQ",
+  "authDomain": "runfourcode.firebaseapp.com",
+  "projectId": "runfourcode",
+  "storageBucket": "runfourcode.firebasestorage.app",
+  "messagingSenderId": "134292986685",
+  "appId": "1:134292986685:web:a1c4202065eadfc531c354",
+  "measurementId": "G-610XZYQTHX"
 }
