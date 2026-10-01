@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { X, LogIn, LogOut, ShieldCheck, LayoutDashboard } from 'lucide-react';
-import { User } from 'firebase/auth';
+import { User } from '@firebase/auth';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: User | null;
   onLogin: () => Promise<void>;
+  onAdminLogin: (email: string, password: string) => Promise<boolean>;
   onLogout: () => Promise<void>;
   onOpenDashboard: () => void;
   isAdmin: boolean;
+  adminSessionEmail: string;
   onOpenAdmin: () => void;
 }
 
@@ -18,12 +20,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   user,
   onLogin,
+  onAdminLogin,
   onLogout,
   onOpenDashboard,
   isAdmin,
+  adminSessionEmail,
   onOpenAdmin,
 }) => {
   const [isAdminTab, setIsAdminTab] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminLoginError, setAdminLoginError] = useState('');
+  const [adminLoginPending, setAdminLoginPending] = useState(false);
 
   if (!isOpen) return null;
 
@@ -50,21 +58,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </button>
           </div>
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
-            {user ? `Welcome back, ${user.displayName || 'Client'}` : isAdminTab ? 'Admin Authentication' : 'Ready to build something?'}
+            {user ? `Welcome back, ${user.displayName || 'Client'}` : isAdmin ? 'Admin Session' : isAdminTab ? 'Admin Authentication' : 'Ready to build something?'}
           </h2>
           <p className="text-neutral-600 text-sm mt-1">
-            {user
+            {isAdmin && !user
+              ? 'Your admin session is verified by the application server.'
+              : user
               ? 'Manage your project requests, track status, and chat directly with our engineering team.'
               : isAdminTab
-              ? 'Sign in with an authorized company Google account to access the admin CRM.'
+              ? 'Sign in with the authorized admin email and password.'
               : 'Sign in with your Google account or access company admin portal.'}
           </p>
         </div>
 
-        {user ? (
+        {user || isAdmin ? (
           <div className="space-y-6">
             <div className="flex items-center gap-4 p-4 bg-white border border-neutral-200 rounded-xl">
-              {user.photoURL ? (
+              {user?.photoURL ? (
                 <img
                   src={user.photoURL}
                   alt={user.displayName || 'User'}
@@ -72,12 +82,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 />
               ) : (
                 <div className="w-12 h-12 rounded-full bg-[#0D06B2] text-white flex items-center justify-center font-bold">
-                  {user.displayName?.[0] || 'U'}
+                  {user?.displayName?.[0] || (isAdmin ? 'A' : 'U')}
                 </div>
               )}
               <div className="overflow-hidden">
-                <h4 className="font-semibold text-neutral-900 truncate">{user.displayName}</h4>
-                <p className="text-xs text-neutral-500 truncate">{user.email}</p>
+                <h4 className="font-semibold text-neutral-900 truncate">{user?.displayName || (isAdmin ? 'Administrator' : 'Client')}</h4>
+                <p className="text-xs text-neutral-500 truncate">{user?.email || adminSessionEmail}</p>
                 <div className="flex items-center gap-1.5 mt-1 text-[11px] text-emerald-600 font-medium">
                   <ShieldCheck className="w-3.5 h-3.5" /> Authenticated
                   {isAdmin && <span className="ml-1 px-1.5 py-0.2 bg-[#0D06B2]/10 text-[#0D06B2] rounded font-mono text-[10px]">ADMIN</span>}
@@ -86,7 +96,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
 
             <div className="grid grid-cols-1 gap-3">
-              <button
+              {user && <button
                 onClick={() => {
                   onOpenDashboard();
                   onClose();
@@ -94,7 +104,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[#050505] text-white rounded-xl font-medium hover:bg-neutral-800 transition-colors shadow-lg"
               >
                 <LayoutDashboard className="w-4 h-4" /> Go to Client Dashboard
-              </button>
+              </button>}
 
               {isAdmin && (
                 <button
@@ -120,20 +130,52 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           </div>
         ) : isAdminTab ? (
-          <div className="space-y-4">
-            <p className="p-4 bg-white border border-neutral-200 rounded-xl text-sm text-neutral-700">
-              Admin access is verified by Firebase Authentication. Client-side passwords cannot authorize Firestore access.
-            </p>
+          <form
+            className="space-y-4"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              setAdminLoginPending(true);
+              setAdminLoginError('');
+              const success = await onAdminLogin(adminEmail.trim(), adminPassword);
+              setAdminLoginPending(false);
+              if (success) onClose();
+              else setAdminLoginError('Sign-in failed. Check the admin email and password.');
+            }}
+          >
+            <label className="block text-xs font-semibold text-neutral-600">
+              Admin email
+              <input
+                type="email"
+                autoComplete="username"
+                required
+                value={adminEmail}
+                onChange={(event) => setAdminEmail(event.target.value)}
+                className="mt-1.5 w-full px-4 py-3 bg-white border border-neutral-300 rounded-xl text-sm text-neutral-900 focus:outline-none focus:border-[#0D06B2]"
+              />
+            </label>
+            <label className="block text-xs font-semibold text-neutral-600">
+              Password
+              <input
+                type="password"
+                autoComplete="current-password"
+                required
+                value={adminPassword}
+                onChange={(event) => setAdminPassword(event.target.value)}
+                className="mt-1.5 w-full px-4 py-3 bg-white border border-neutral-300 rounded-xl text-sm text-neutral-900 focus:outline-none focus:border-[#0D06B2]"
+              />
+            </label>
+            {adminLoginError && <p role="alert" className="text-sm text-red-700">{adminLoginError}</p>}
             <button
-              onClick={async () => {
-                await onLogin();
-                onClose();
-              }}
-              className="w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-[#0D06B2] text-white rounded-xl font-medium hover:bg-[#0a0490] transition-colors shadow-lg"
+              type="submit"
+              disabled={adminLoginPending}
+              className="w-full flex items-center justify-center gap-2 py-3.5 px-6 bg-[#0D06B2] text-white rounded-xl font-medium hover:bg-[#0a0490] transition-colors shadow-lg disabled:opacity-50"
             >
-              <LogIn className="w-4 h-4" /> Sign in with Google
+              <LogIn className="w-4 h-4" /> {adminLoginPending ? 'Signing in...' : 'Sign in to Admin'}
             </button>
-          </div>
+            <p className="text-xs text-neutral-500 text-center">
+              Credentials are checked by the server and this session is stored in a secure browser cookie.
+            </p>
+          </form>
         ) : (
           <div className="space-y-6">
             <div className="p-4 bg-white border border-neutral-200 rounded-xl space-y-3">

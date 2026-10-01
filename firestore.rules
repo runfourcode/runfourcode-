@@ -7,71 +7,28 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isAdmin() {
-      return isSignedIn() && (
-        request.auth.token.email == 'aadityathakur.ayu243@gmail.com' ||
-        request.auth.token.email == 'thakuradi8368@gmail.com' ||
-        request.auth.token.email == 'ran4code@gmail.com' ||
-        request.auth.token.email == 'admin@runfourcode.com'
-      );
-    }
-
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    function validInquiryCreate() {
-      let data = request.resource.data;
-      return data.keys().hasAll(['uid', 'name', 'email', 'projectType', 'idea', 'status', 'createdAt'])
-        && data.keys().hasOnly(['uid', 'name', 'email', 'phone', 'website', 'projectType', 'budget', 'idea', 'status', 'createdAt', 'updatedAt', 'deployedUrl'])
-        && (data.uid == null || isOwner(data.uid) || isAdmin())
-        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
-        && data.email is string && data.email.size() > 0 && data.email.size() <= 150
-        && data.projectType is string && data.projectType.size() > 0 && data.projectType.size() <= 100
-        && data.idea is string && data.idea.size() > 0 && data.idea.size() <= 2000
-        && data.status == 'NEW'
-        && data.createdAt is timestamp
-        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 30))
-        && (!('website' in data) || (data.website is string && data.website.size() <= 200))
-        && (!('budget' in data) || (data.budget is string && data.budget.size() <= 50))
-        && (!('updatedAt' in data) || data.updatedAt is timestamp)
-        && (!('deployedUrl' in data) || (data.deployedUrl is string && data.deployedUrl.size() <= 200));
-    }
-
     match /siteContent/{docId} {
-      allow read: if true;
-      allow write: if isSignedIn();
+      allow read, write: if false;
     }
 
     match /cms/{cmsId} {
-      allow read: if true;
-      allow write: if isSignedIn();
+      allow read, write: if false;
     }
 
     match /users/{userId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if false;
     }
 
     match /inquiries/{inquiryId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
-      allow create: if validInquiryCreate();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read, write: if false;
 
       match /messages/{messageId} {
-        allow read, create, update, delete: if isAdmin() || (
-          isSignedIn()
-          && get(/databases/$(database)/documents/inquiries/$(inquiryId)).data.uid == request.auth.uid
-        );
+        allow read, write: if false;
       }
     }
 
     match /projects/{projectId} {
-      allow read, create, update, delete: if isSignedIn();
+      allow read, write: if false;
     }
   }
 }

@@ -1,6 +1,6 @@
 export interface Inquiry {
   id: string;
-  uid: string;
+  uid: string | null;
   name: string;
   email: string;
   phone?: string;
@@ -10,8 +10,8 @@ export interface Inquiry {
   idea: string;
   status: 'NEW' | 'REPLIED' | 'IN PROGRESS' | 'CLOSED';
   deployedUrl?: string;
-  createdAt: any;
-  updatedAt?: any;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface ChatMessage {
@@ -20,17 +20,8 @@ export interface ChatMessage {
   senderType: 'client' | 'admin';
   senderName?: string;
   message: string;
-  createdAt: any;
+  createdAt: string;
   read?: boolean;
-}
-
-export interface UserProfile {
-  uid: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-  role: 'client' | 'admin';
-  createdAt?: any;
 }
 
 export interface ServiceItem {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, X, ArrowRight, User as UserIcon, ShieldCheck, LayoutDashboard } from 'lucide-react';
-import { User } from 'firebase/auth';
+import { User } from '@firebase/auth';
 import { Logo } from './Logo';
 
 interface NavbarProps {
@@ -9,6 +9,7 @@ interface NavbarProps {
   onOpenRequest: () => void;
   onOpenDashboard: () => void;
   isAdmin: boolean;
+  adminEmail: string;
   onOpenAdmin: () => void;
 }
 
@@ -18,6 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenRequest,
   onOpenDashboard,
   isAdmin,
+  adminEmail,
   onOpenAdmin,
 }) => {
   const [scrolled, setScrolled] = useState(false);
@@ -66,15 +68,21 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Zone 3: Primary actions */}
         <div className="hidden md:flex items-center gap-3">
-          {user ? (
+          {user || isAdmin ? (
             <div className="flex items-center gap-3">
-              <button
-                onClick={onOpenDashboard}
-                className="flex items-center gap-2 py-2.5 px-4 bg-white/10 border border-white/20 text-white rounded-xl text-xs font-semibold hover:border-cyan-400 transition-colors"
-              >
-                <LayoutDashboard className="w-4 h-4 text-cyan-400" />
-                <span className="truncate max-w-[120px]">{user.displayName || 'Dashboard'}</span>
-              </button>
+              {user ? (
+                <button
+                  onClick={onOpenDashboard}
+                  className="flex items-center gap-2 py-2.5 px-4 bg-white/10 border border-white/20 text-white rounded-xl text-xs font-semibold hover:border-cyan-400 transition-colors"
+                >
+                  <LayoutDashboard className="w-4 h-4 text-cyan-400" />
+                  <span className="truncate max-w-[120px]">{user.displayName || 'Dashboard'}</span>
+                </button>
+              ) : (
+                <button onClick={onOpenAuth} className="text-xs font-semibold text-neutral-200 hover:text-cyan-400">
+                  {adminEmail || 'Admin Session'}
+                </button>
+              )}
               {isAdmin && (
                 <button
                   onClick={onOpenAdmin}
@@ -133,9 +141,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             </a>
           </nav>
           <div className="pt-4 border-t border-white/10 flex flex-col gap-3">
-            {user ? (
+            {user || isAdmin ? (
               <>
-                <button
+                {!user && (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onOpenAuth();
+                    }}
+                    className="w-full py-3 bg-white/10 border border-white/20 text-white rounded-xl font-medium text-center"
+                  >
+                    {adminEmail || 'Admin Session'}
+                  </button>
+                )}
+                {user && <button
                   onClick={() => {
                     setMobileMenuOpen(false);
                     onOpenDashboard();
@@ -143,7 +162,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   className="w-full py-3 bg-white/10 border border-white/20 text-white rounded-xl font-medium text-center flex items-center justify-center gap-2"
                 >
                   <LayoutDashboard className="w-4 h-4 text-cyan-400" /> Client Dashboard
-                </button>
+                </button>}
                 {isAdmin && (
                   <button
                     onClick={() => {

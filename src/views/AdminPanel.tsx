@@ -21,17 +21,17 @@ import {
   Settings,
   Link as LinkIcon
 } from 'lucide-react';
-import { User } from 'firebase/auth';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp, setDoc, getDoc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { User } from '@firebase/auth';
+import { apiRequest } from '../api';
 import { Inquiry, ChatMessage, SiteContent } from '../types';
 
 interface AdminPanelProps {
   user: User | null;
+  adminEmail: string;
   onBackToHome: () => void;
 }
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) => {
+export const AdminPanel: React.FC<AdminPanelProps> = ({ user, adminEmail, onBackToHome }) => {
   const [activeAdminTab, setActiveAdminTab] = useState<'inquiries' | 'cms' | 'ai-agent'>('inquiries');
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [selectedInquiryId, setSelectedInquiryId] = useState<string | null>(null);
@@ -49,7 +49,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiChatHistory, setAiChatHistory] = useState<Array<{ role: 'user' | 'assistant'; text: string }>>([
-    { role: 'assistant', text: 'Hello Admin. I am your internal runfourcode AI Code Medic & Debugger agent powered by Gemini 2.5 Flash. I can analyze runtime logs, inspect Firestore security rules, debug errors, and generate automated code patches. How can I help optimize your platform today?' }
+    { role: 'assistant', text: 'Hello Admin. I am your internal runfourcode AI Code Medic & Debugger agent powered by Gemini 2.5 Flash. I can analyze runtime logs, diagnose backend errors, and generate automated code patches. How can I help optimize your platform today?' }
   ]);
 
   // CMS state
@@ -62,71 +62,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
   });
   const [savingCms, setSavingCms] = useState(false);
 
-  const handleSeedData = async () => {
-    try {
-      const sampleInquiries = [
-        {
-          uid: user?.uid || 'demo-client-1',
-          name: 'Aaditya Thakur',
-          email: user?.email || 'aadityathakur.ayu243@gmail.com',
-          phone: '+91 9876543210',
-          website: 'https://runfourcode.netlify.app',
-          projectType: 'Full-Stack SaaS Platform with AI',
-          budget: '$10k - $25k',
-          idea: 'Building a next-generation AI-powered cloud development platform with real-time analytics and automated deployments.',
-          status: 'NEW',
-          createdAt: serverTimestamp(),
-        },
-        {
-          uid: 'demo-client-2',
-          name: 'Sarah Jenkins',
-          email: 'sarah@enterprise.io',
-          phone: '+1 555-0192',
-          website: 'https://enterprise.io',
-          projectType: 'Mobile App & Cloud Backend',
-          budget: '$25k - $50k',
-          idea: 'Enterprise supply chain tracking mobile app with real-time GPS sync and Firestore sync.',
-          status: 'IN PROGRESS',
-          deployedUrl: 'https://runfourcode.netlify.app',
-          createdAt: serverTimestamp(),
-        },
-      ];
-
-      for (const inq of sampleInquiries) {
-        await addDoc(collection(db, 'inquiries'), inq);
-      }
-      alert('🚀 Successfully seeded demo projects & inquiries into Firestore! Check your Firebase Console under "inquiries".');
-    } catch (error) {
-      console.error('Error seeding data:', error);
-      alert('Error seeding data. Check console.');
-    }
-  };
-
-  // Fetch all inquiries in real-time
   useEffect(() => {
-    const q = query(collection(db, 'inquiries'), orderBy('createdAt', 'desc'));
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const list: Inquiry[] = [];
-        snapshot.forEach((docSnap) => {
-          list.push({ ...(docSnap.data() as any), id: docSnap.id });
-        });
+    let active = true;
+    const loadInquiries = async () => {
+      try {
+        const list = await apiRequest<Inquiry[]>('/api/inquiries');
+        if (!active) return;
         setInquiries(list);
         setInquiryLoadError(null);
-        setLoading(false);
-        if (list.length > 0) {
-          setSelectedInquiryId((currentId) => currentId ?? list[0].id);
-        }
-      },
-      (error) => {
-        console.error('Failed to load admin inquiries from Firestore:', error);
-        setInquiryLoadError('Could not load inquiries. Check that this account is authorized and Firestore rules are deployed.');
-        setLoading(false);
+        setSelectedInquiryId((currentId) => currentId ?? list[0]?.id ?? null);
+      } catch (error) {
+        if (!active) return;
+        console.error('Failed to load admin inquiries:', error);
+        setInquiryLoadError(error instanceof Error ? error.message : 'Could not load inquiries.');
+      } finally {
+        if (active) setLoading(false);
       }
-    );
-
-    return () => unsubscribe();
+    };
+    void loadInquiries();
+    const interval = window.setInterval(loadInquiries, 10000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, []);
 
   const selectedInquiry = inquiries.find((i) => i.id === selectedInquiryId);
@@ -141,15 +99,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
   useEffect(() => {
     const fetchCms = async () => {
       try {
-        const snap = await getDoc(doc(db, 'siteContent', 'main'));
-        if (snap.exists()) {
-          setSiteContent(snap.data() as SiteContent);
-        }
-      } catch (e) {
-        // Fallback silently if offline
+        setSiteContent(await apiRequest<SiteContent>('/api/site-content'));
+      } catch (error) {
+        console.error('Failed to load website content:', error);
       }
     };
-    fetchCms();
+    void fetchCms();
   }, []);
 
   // Fetch messages for selected inquiry
@@ -159,41 +114,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
       return;
     }
 
-    const q = query(collection(db, `inquiries/${selectedInquiryId}/messages`));
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const msgs: ChatMessage[] = [];
-        snapshot.forEach((docSnap) => {
-          msgs.push({ id: docSnap.id, ...(docSnap.data() as any) });
-        });
-        msgs.sort((a, b) => {
-          const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-          const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-          return timeA - timeB;
-        });
+    let active = true;
+    const loadMessages = async () => {
+      try {
+        const msgs = await apiRequest<ChatMessage[]>(`/api/inquiries/${selectedInquiryId}/messages`);
+        if (!active) return;
         setMessages(msgs);
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.GET, `inquiries/${selectedInquiryId}/messages`);
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      } catch (error) {
+        if (active) console.error('Failed to load inquiry messages:', error);
       }
-    );
-
-    return () => unsubscribe();
+    };
+    void loadMessages();
+    const interval = window.setInterval(loadMessages, 5000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, [selectedInquiryId]);
 
   const handleUpdateStatus = async (newStatus: 'NEW' | 'REPLIED' | 'IN PROGRESS' | 'CLOSED') => {
     if (!selectedInquiryId) return;
     try {
-      await updateDoc(doc(db, 'inquiries', selectedInquiryId), {
-        status: newStatus,
-        updatedAt: serverTimestamp(),
+      const updated = await apiRequest<Inquiry>(`/api/inquiries/${selectedInquiryId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus }),
       });
+      setInquiries((current) => current.map((inquiry) => inquiry.id === updated.id ? updated : inquiry));
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `inquiries/${selectedInquiryId}`);
+      console.error('Failed to update inquiry status:', error);
+      alert(error instanceof Error ? error.message : 'Could not update inquiry status.');
     }
   };
 
@@ -201,41 +151,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
     e.preventDefault();
     if (!selectedInquiryId) return;
     try {
-      await updateDoc(doc(db, 'inquiries', selectedInquiryId), {
-        deployedUrl: deployedUrlInput.trim(),
-        updatedAt: serverTimestamp(),
+      const updated = await apiRequest<Inquiry>(`/api/inquiries/${selectedInquiryId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ deployedUrl: deployedUrlInput.trim() }),
       });
+      setInquiries((current) => current.map((inquiry) => inquiry.id === updated.id ? updated : inquiry));
       alert('Delivered website URL updated and sent to client dashboard successfully!');
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `inquiries/${selectedInquiryId}`);
+      console.error('Failed to update delivered website URL:', error);
+      alert(error instanceof Error ? error.message : 'Could not update website URL.');
     }
   };
 
   const handleSendAdminReply = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!replyMessage.trim() || !selectedInquiryId || !user) return;
+    if (!replyMessage.trim() || !selectedInquiryId) return;
 
     setSending(true);
     try {
-      await addDoc(collection(db, `inquiries/${selectedInquiryId}/messages`), {
-        senderId: user.uid,
-        senderType: 'admin',
-        senderName: user.displayName || 'runfourcode Admin',
-        message: replyMessage.trim(),
-        createdAt: serverTimestamp(),
-        read: false,
+      const message = await apiRequest<ChatMessage>(`/api/inquiries/${selectedInquiryId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ message: replyMessage.trim() }),
       });
+      setMessages((current) => [...current, message]);
 
       if (selectedInquiry?.status === 'NEW') {
-        await updateDoc(doc(db, 'inquiries', selectedInquiryId), {
-          status: 'REPLIED',
-          updatedAt: serverTimestamp(),
-        });
+        setInquiries((current) => current.map((inquiry) => inquiry.id === selectedInquiryId
+          ? { ...inquiry, status: 'REPLIED', updatedAt: message.createdAt }
+          : inquiry));
       }
 
       setReplyMessage('');
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `inquiries/${selectedInquiryId}/messages`);
+      console.error('Failed to send admin reply:', error);
+      alert(error instanceof Error ? error.message : 'Could not send reply.');
     } finally {
       setSending(false);
     }
@@ -245,11 +194,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
     e.preventDefault();
     setSavingCms(true);
     try {
-      await setDoc(doc(db, 'siteContent', 'main'), siteContent);
+      await apiRequest('/api/site-content', {
+        method: 'PUT',
+        body: JSON.stringify(siteContent),
+      });
       alert('Website content updated successfully across the platform!');
     } catch (error) {
       console.error('Error saving CMS:', error);
-      alert('Failed to save website content.');
+      alert(error instanceof Error ? error.message : 'Failed to save website content.');
     } finally {
       setSavingCms(false);
     }
@@ -264,19 +216,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
     setAiLoading(true);
 
     try {
-      const res = await fetch('/api/ai-debugger', {
+      const data = await apiRequest<{ success: boolean; analysis: string }>('/api/ai-debugger', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: promptText,
-          logs: { totalInquiries: inquiries.length, adminUser: user?.email }
+          logs: { totalInquiries: inquiries.length, adminUser: user?.email || adminEmail }
         })
       });
-      const data = await res.json();
       if (data.success) {
         setAiChatHistory(prev => [...prev, { role: 'assistant', text: data.analysis }]);
       } else {
-        setAiChatHistory(prev => [...prev, { role: 'assistant', text: `Error: ${data.error}` }]);
+        setAiChatHistory(prev => [...prev, { role: 'assistant', text: 'The AI agent returned no analysis.' }]);
       }
     } catch (err: any) {
       setAiChatHistory(prev => [...prev, { role: 'assistant', text: `Failed to communicate with AI agent: ${err.message}` }]);
@@ -309,7 +259,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
             <span className="text-sm font-bold font-['Space_Grotesk',sans-serif]">
               runfourcode ADMIN COMMAND CENTER
             </span>
-            <p className="text-[11px] font-mono text-cyan-300">AUTHORIZED ADMIN: {user?.email || 'Authenticated'}</p>
+            <p className="text-[11px] font-mono text-cyan-300">AUTHORIZED ADMIN: {user?.email || adminEmail || 'Authenticated'}</p>
           </div>
         </div>
 
@@ -338,12 +288,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
               }`}
             >
               <span>🤖 AI Code Medic</span>
-            </button>
-            <button
-              onClick={handleSeedData}
-              className="px-4 py-2 rounded-lg text-xs font-mono font-bold bg-emerald-600 text-white hover:bg-emerald-500 transition-colors flex items-center gap-1.5"
-            >
-              <span>⚡ Seed Demo Data</span>
             </button>
           </div>
         </div>
@@ -397,7 +341,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
                   type="text"
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
-                  placeholder="Ask AI Agent to debug an error, optimize Firestore rules, or write a new feature..."
+                  placeholder="Ask the AI agent to diagnose a backend issue or help with a feature..."
                   className="flex-1 bg-white/5 border border-white/20 rounded-xl px-4 py-3 text-sm text-white placeholder-neutral-400 focus:outline-none focus:border-cyan-400 font-mono"
                 />
                 <button
@@ -549,7 +493,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ user, onBackToHome }) =>
                         </div>
                         <p className="text-[11px] text-neutral-300 truncate">{inq.projectType}</p>
                         <p className="text-[10px] text-neutral-500 font-mono">
-                          {inq.createdAt?.toDate ? inq.createdAt.toDate().toLocaleDateString() : 'Just now'}
+                          {new Date(inq.createdAt).toLocaleDateString()}
                         </p>
                       </button>
                     );

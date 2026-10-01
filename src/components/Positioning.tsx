@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { apiRequest } from '../api';
 
 export const Positioning: React.FC = () => {
   const [headline, setHeadline] = useState('Your idea is only the beginning.');
@@ -11,17 +10,14 @@ export const Positioning: React.FC = () => {
   useEffect(() => {
     const fetchCms = async () => {
       try {
-        const snap = await getDoc(doc(db, 'siteContent', 'main'));
-        if (snap.exists()) {
-          const data = snap.data();
-          if (data.positioningHeadline) setHeadline(data.positioningHeadline);
-          if (data.positioningBody) setBody(data.positioningBody);
-        }
-      } catch (e) {
-        // Fallback silently if offline or unavailable
+        const data = await apiRequest<{ positioningHeadline: string; positioningBody: string }>('/api/site-content');
+        if (data.positioningHeadline) setHeadline(data.positioningHeadline);
+        if (data.positioningBody) setBody(data.positioningBody);
+      } catch (error) {
+        console.error('Failed to load positioning content:', error);
       }
     };
-    fetchCms();
+    void fetchCms();
   }, []);
 
   return (

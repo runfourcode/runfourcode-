@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, X, Send, ShieldCheck, Sparkles, User as UserIcon } from 'lucide-react';
-import { collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
-import { User } from 'firebase/auth';
+import { apiRequest } from '../api';
+import { User } from '@firebase/auth';
 import { ChatMessage, Inquiry } from '../types';
 
 interface ChatWidgetProps {
@@ -26,27 +25,23 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ user, onOpenAuth }) => {
       setSelectedInquiryId(null);
       return;
     }
-
-    const q = query(collection(db, 'inquiries'), where('uid', '==', user.uid));
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const list: Inquiry[] = [];
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data() as Inquiry;
-          list.push({ ...data, id: docSnap.id });
-        });
+    let active = true;
+    const loadInquiries = async () => {
+      try {
+        const list = await apiRequest<Inquiry[]>('/api/inquiries');
+        if (!active) return;
         setInquiries(list);
-        if (list.length > 0 && !selectedInquiryId) {
-          setSelectedInquiryId(list[0].id);
-        }
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.GET, 'inquiries');
+        setSelectedInquiryId((currentId) => currentId ?? list[0]?.id ?? null);
+      } catch (error) {
+        if (active) console.error('Failed to load chat inquiries:', error);
       }
-    );
-
-    return () => unsubscribe();
+    };
+    void loadInquiries();
+    const interval = window.setInterval(loadInquiries, 10000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, [user]);
 
   // Fetch messages for selected inquiry
@@ -56,27 +51,23 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ user, onOpenAuth }) => {
       return;
     }
 
-    const messagesQuery = query(
-      collection(db, `inquiries/${selectedInquiryId}/messages`),
-      orderBy('createdAt', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(
-      messagesQuery,
-      (snapshot) => {
-        const msgs: ChatMessage[] = [];
-        snapshot.forEach((docSnap) => {
-          msgs.push({ id: docSnap.id, ...(docSnap.data() as any) });
-        });
+    let active = true;
+    const loadMessages = async () => {
+      try {
+        const msgs = await apiRequest<ChatMessage[]>(`/api/inquiries/${selectedInquiryId}/messages`);
+        if (!active) return;
         setMessages(msgs);
         scrollToBottom();
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.GET, `inquiries/${selectedInquiryId}/messages`);
+      } catch (error) {
+        if (active) console.error('Failed to load chat messages:', error);
       }
-    );
-
-    return () => unsubscribe();
+    };
+    void loadMessages();
+    const interval = window.setInterval(loadMessages, 5000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, [selectedInquiryId]);
 
   const scrollToBottom = () => {
@@ -91,18 +82,15 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ user, onOpenAuth }) => {
 
     setSending(true);
     try {
-      await addDoc(collection(db, `inquiries/${selectedInquiryId}/messages`), {
-        senderId: user.uid,
-        senderType: 'client',
-        senderName: user.displayName || 'Client',
-        message: newMessage.trim(),
-        createdAt: serverTimestamp(),
-        read: false,
+      const message = await apiRequest<ChatMessage>(`/api/inquiries/${selectedInquiryId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ message: newMessage.trim() }),
       });
+      setMessages((current) => [...current, message]);
       setNewMessage('');
       scrollToBottom();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `inquiries/${selectedInquiryId}/messages`);
+      console.error('Failed to send chat message:', error);
     } finally {
       setSending(false);
     }

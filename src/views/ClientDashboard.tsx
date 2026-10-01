@@ -19,9 +19,8 @@ import {
   Activity,
   HeartPulse
 } from 'lucide-react';
-import { User } from 'firebase/auth';
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { User } from '@firebase/auth';
+import { apiRequest } from '../api';
 import { Inquiry, ChatMessage } from '../types';
 
 interface ClientDashboardProps {
@@ -54,29 +53,30 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
   // Fetch client inquiries & projects
   useEffect(() => {
-    if (!user) return;
-    const q = query(collection(db, 'inquiries'), where('uid', '==', user.uid));
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const list: Inquiry[] = [];
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data() as Inquiry;
-          list.push({ ...data, id: docSnap.id });
-        });
+    if (!user) {
+      setInquiries([]);
+      setLoading(false);
+      return;
+    }
+    let active = true;
+    const loadInquiries = async () => {
+      try {
+        const list = await apiRequest<Inquiry[]>('/api/inquiries');
+        if (!active) return;
         setInquiries(list);
-        setLoading(false);
-        if (list.length > 0 && !selectedInquiryId) {
-          setSelectedInquiryId(list[0].id);
-        }
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.GET, 'inquiries');
-        setLoading(false);
+        setSelectedInquiryId((currentId) => currentId ?? list[0]?.id ?? null);
+      } catch (error) {
+        if (active) console.error('Failed to load client inquiries:', error);
+      } finally {
+        if (active) setLoading(false);
       }
-    );
-
-    return () => unsubscribe();
+    };
+    void loadInquiries();
+    const interval = window.setInterval(loadInquiries, 10000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, [user]);
 
   // Fetch messages for selected project
@@ -86,30 +86,23 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
       return;
     }
 
-    const q = query(collection(db, `inquiries/${selectedInquiryId}/messages`));
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const msgs: ChatMessage[] = [];
-        snapshot.forEach((docSnap) => {
-          msgs.push({ id: docSnap.id, ...(docSnap.data() as any) });
-        });
-        msgs.sort((a, b) => {
-          const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-          const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-          return timeA - timeB;
-        });
+    let active = true;
+    const loadMessages = async () => {
+      try {
+        const msgs = await apiRequest<ChatMessage[]>(`/api/inquiries/${selectedInquiryId}/messages`);
+        if (!active) return;
         setMessages(msgs);
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
-      },
-      (error) => {
-        handleFirestoreError(error, OperationType.GET, `inquiries/${selectedInquiryId}/messages`);
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      } catch (error) {
+        if (active) console.error('Failed to load client messages:', error);
       }
-    );
-
-    return () => unsubscribe();
+    };
+    void loadMessages();
+    const interval = window.setInterval(loadMessages, 5000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, [selectedInquiryId]);
 
   const selectedInquiry = inquiries.find((i) => i.id === selectedInquiryId);
@@ -120,17 +113,14 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
 
     setSending(true);
     try {
-      await addDoc(collection(db, `inquiries/${selectedInquiryId}/messages`), {
-        senderId: user.uid,
-        senderType: 'client',
-        senderName: user.displayName || 'Client',
-        message: chatInput.trim(),
-        createdAt: serverTimestamp(),
-        read: false,
+      const message = await apiRequest<ChatMessage>(`/api/inquiries/${selectedInquiryId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ message: chatInput.trim() }),
       });
+      setMessages((current) => [...current, message]);
       setChatInput('');
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, `inquiries/${selectedInquiryId}/messages`);
+      console.error('Failed to send client message:', error);
     } finally {
       setSending(false);
     }
@@ -596,7 +586,7 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                 <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
                 <div>
                   <h5 className="font-bold text-sm text-emerald-900">Secure Google OAuth Session Active</h5>
-                  <p className="text-xs text-emerald-700 mt-0.5">Your connection is protected by cryptographic token verification and Firestore security rules.</p>
+                  <p className="text-xs text-emerald-700 mt-0.5">Your session uses verified Google sign-in and server-checked access to your project data.</p>
                 </div>
               </div>
             </div>

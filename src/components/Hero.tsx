@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, ChevronDown, Cpu, ShieldCheck, Zap } from 'lucide-react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { apiRequest } from '../api';
 
 interface HeroProps {
   onOpenRequest: () => void;
@@ -16,14 +15,11 @@ export const Hero: React.FC<HeroProps> = ({ onOpenRequest }) => {
   useEffect(() => {
     const fetchCms = async () => {
       try {
-        const snap = await getDoc(doc(db, 'siteContent', 'main'));
-        if (snap.exists()) {
-          const data = snap.data();
-          if (data.heroTitle) setHeroTitle(data.heroTitle);
-          if (data.heroSubtitle) setHeroSubtitle(data.heroSubtitle);
-        }
-      } catch (e) {
-        // Fallback silently if offline or unavailable
+        const data = await apiRequest<{ heroTitle: string; heroSubtitle: string }>('/api/site-content');
+        if (data.heroTitle) setHeroTitle(data.heroTitle);
+        if (data.heroSubtitle) setHeroSubtitle(data.heroSubtitle);
+      } catch (error) {
+        console.error('Failed to load hero content:', error);
       }
     };
     fetchCms();

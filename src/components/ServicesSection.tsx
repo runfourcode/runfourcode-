@@ -46,7 +46,7 @@ export const ServicesSection: React.FC<{ onOpenRequest: () => void }> = ({ onOpe
       title: 'SOFTWARE SOLUTIONS',
       shortDesc: 'Custom software products and digital platforms.',
       fullDesc: 'Turn complex product requirements into robust, scalable software platforms built with modern cloud infrastructure and rock-solid security rules.',
-      deliverables: ['SaaS Product Engineering', 'Cloud Firestore / Backend Architecture', 'REST & GraphQL API Integration', 'Third-Party Service Connectors', 'Secure User Authentication'],
+      deliverables: ['SaaS Product Engineering', 'PostgreSQL / Backend Architecture', 'REST & GraphQL API Integration', 'Third-Party Service Connectors', 'Secure User Authentication'],
       icon: 'cpu',
     },
     {

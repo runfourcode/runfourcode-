@@ -18,7 +18,7 @@ export const ProcessSection: React.FC = () => {
       num: '03',
       title: 'BUILD',
       subtitle: 'Design, develop, integrate, and test.',
-      desc: 'Our engineers build your digital system with rigorous code standards, responsive UI, secure Firestore databases, and thorough quality assurance testing.',
+      desc: 'Our engineers build your digital system with rigorous code standards, responsive UI, secure PostgreSQL databases, and thorough quality assurance testing.',
     },
     {
       num: '04',

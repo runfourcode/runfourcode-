@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { X, Send, CheckCircle2 } from 'lucide-react';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
-import { User } from 'firebase/auth';
+import { apiRequest } from '../api';
+import { User } from '@firebase/auth';
 
 interface RequestModalProps {
   isOpen: boolean;
@@ -41,7 +40,6 @@ export const RequestModal: React.FC<RequestModalProps> = ({
     setSubmitError('');
     try {
       const inquiryData = {
-        uid: user?.uid ?? null,
         name,
         email,
         phone,
@@ -49,18 +47,18 @@ export const RequestModal: React.FC<RequestModalProps> = ({
         projectType,
         budget,
         idea,
-        status: 'NEW',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
       };
 
-      const inquiryRef = await addDoc(collection(db, 'inquiries'), inquiryData);
-      console.info('Inquiry submitted successfully:', inquiryRef.id);
+      const inquiry = await apiRequest<{ id: string }>('/api/inquiries', {
+        method: 'POST',
+        body: JSON.stringify(inquiryData),
+      });
+      console.info('Inquiry submitted successfully:', inquiry.id);
       setSubmitted(true);
       onSuccessToast('Request submitted successfully. Our engineering team will review it shortly.');
     } catch (error) {
-      console.error('Failed to submit inquiry to Firestore:', error);
-      setSubmitError('We could not send your request. Please check your connection and try again.');
+      console.error('Failed to submit inquiry:', error);
+      setSubmitError(error instanceof Error ? error.message : 'We could not send your request. Please try again.');
     } finally {
       setSubmitting(false);
     }
